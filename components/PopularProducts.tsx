@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ShoppingCart, ArrowRight, Check } from "lucide-react";
@@ -17,7 +17,45 @@ export const PopularProducts: React.FC<PopularProductsProps> = ({
   cartItemsMap: propCartItemsMap,
 }) => {
   const cart = useCart();
+  const [products, setProducts] = useState<Product[]>(POPULAR_PRODUCTS);
   const [justAddedId, setJustAddedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchPopularProducts = async () => {
+      try {
+        const res = await fetch("/api/products?limit=10", { cache: "no-store" });
+        const data = await res.json();
+        if (isMounted && data.success && Array.isArray(data.products) && data.products.length > 0) {
+          setProducts(
+            data.products.map((p: any) => ({
+              id: p.id,
+              name: p.name,
+              weight: p.weight || "1 Unit",
+              price: Number(p.price),
+              originalPrice: p.original_price ? Number(p.original_price) : undefined,
+              image: p.image || "/placeholder.png",
+              category: p.category_name || "General",
+              inStock: true,
+              specifications: Array.isArray(p.specifications)
+                ? p.specifications.reduce((acc: any, curr: any) => {
+                    if (curr?.label) acc[curr.label] = curr.value;
+                    return acc;
+                  }, {})
+                : p.specifications,
+            }))
+          );
+        }
+      } catch (err) {
+        console.warn("PopularProducts: using fallback mock data", err);
+      }
+    };
+
+    fetchPopularProducts();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const cartItemsMap = propCartItemsMap || cart.cartItemsMap;
   const onAddToCart = propOnAddToCart || cart.addToCart;
@@ -40,21 +78,20 @@ export const PopularProducts: React.FC<PopularProductsProps> = ({
             <h2 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">
               Popular Products
             </h2>
-            {/* <div className="w-12 h-1 bg-brand-red rounded-full" /> */}
           </div>
 
-          {/* <a
-            href="#all-products"
-            className="flex items-center gap-1.5 text-sm sm:text-base font-bold text-brand-red hover:text-brand-red-hover transition-colors group cursor-pointer"
+          <Link
+            href="/category"
+            className="flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-brand-red hover:text-brand-red-hover transition-colors group cursor-pointer"
           >
             <span>View All</span>
             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-          </a> */}
+          </Link>
         </div>
 
-        {/* Product Cards Grid - Bigger Image & Minimized Card Height */}
+        {/* Product Cards Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 sm:gap-5">
-          {POPULAR_PRODUCTS.map((product) => {
+          {products.map((product) => {
             const quantityInCart = cartItemsMap[product.id] || 0;
             const isJustAdded = justAddedId === product.id;
 
@@ -71,6 +108,7 @@ export const PopularProducts: React.FC<PopularProductsProps> = ({
                       src={product.image}
                       alt={product.name}
                       fill
+                      unoptimized
                       sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
                       className="object-cover group-hover:scale-108 transition-transform duration-500"
                     />

@@ -16,9 +16,10 @@ import {
   ArrowUpDown,
   ShoppingBag,
   ShoppingCart,
-  Sparkles
+  Sparkles,
+  ArrowRight,
 } from "lucide-react";
-import { ALL_PRODUCTS, CATEGORIES, Product } from "@/data/mockData";
+import { ALL_PRODUCTS, CATEGORIES, Product, Category } from "@/data/mockData";
 import { useCart } from "@/context/CartContext";
 
 const ITEMS_PER_PAGE = 8;
@@ -33,19 +34,84 @@ export const CategoryProducts: React.FC<CategoryProductsProps> = ({ initialCateg
   const cart = useCart();
 
   // Determine current active category from props, params, or default "all"
-  const slugFromParam = (params?.slug as string) || initialCategorySlug || "all";
+  const rawSlug = (params?.slug as string) || initialCategorySlug || "all";
+  const slugFromParam = decodeURIComponent(rawSlug);
   
   const [selectedCategory, setSelectedCategory] = useState<string>(slugFromParam);
+  const [categories, setCategories] = useState<Category[]>(CATEGORIES);
+  const [productsList, setProductsList] = useState<Product[]>(ALL_PRODUCTS);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [priceFilter, setPriceFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("featured");
   const [currentPage, setCurrentPage] = useState(1);
   const [addedProductId, setAddedProductId] = useState<string | null>(null);
 
+  // Fetch real-time categories and products from Supabase DB (with mock fallback)
+  useEffect(() => {
+    let isMounted = true;
+    const fetchDbData = async () => {
+      try {
+        const [catRes, prodRes] = await Promise.all([
+          fetch("/api/categories", { cache: "no-store" }),
+          fetch("/api/products", { cache: "no-store" }),
+        ]);
+        const catData = await catRes.json();
+        const prodData = await prodRes.json();
+
+        if (isMounted) {
+          if (catData?.success && Array.isArray(catData.categories) && catData.categories.length > 0) {
+            setCategories(
+              catData.categories.map((c: any) => ({
+                id: c.id || c.slug,
+                name: c.name,
+                slug: c.slug,
+                iconName: "ShoppingBag",
+                image: c.image || "/placeholder.png",
+              }))
+            );
+          }
+          if (prodData?.success && Array.isArray(prodData.products) && prodData.products.length > 0) {
+            setProductsList(
+              prodData.products.map((p: any) => ({
+                id: p.id,
+                name: p.name,
+                weight: p.weight || "1 Unit",
+                price: Number(p.price),
+                originalPrice: p.original_price ? Number(p.original_price) : undefined,
+                image: p.image || "/placeholder.png",
+                category: p.category_name || "General",
+                category_id: p.category_id || null,
+                inStock: true,
+                specifications: Array.isArray(p.specifications)
+                  ? p.specifications.reduce((acc: any, curr: any) => {
+                      if (curr?.label) acc[curr.label] = curr.value;
+                      return acc;
+                    }, {})
+                  : p.specifications,
+              }))
+            );
+          }
+        }
+      } catch (err) {
+        console.warn("Using fallback mock data for categories and products:", err);
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchDbData();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   // Sync state if URL param changes
   useEffect(() => {
     if (params?.slug) {
-      setSelectedCategory(params.slug as string);
+      setSelectedCategory(decodeURIComponent(params.slug as string));
       setCurrentPage(1);
     }
   }, [params?.slug]);
@@ -86,19 +152,33 @@ export const CategoryProducts: React.FC<CategoryProductsProps> = ({ initialCateg
     router.push("/category");
   };
 
-  // Find active category metadata
-  const currentCategoryObj = CATEGORIES.find((c) => c.slug === selectedCategory);
+  // Find active category metadata (supports slug, name, or id matching)
+  const currentCategoryObj = categories.find(
+    (c) =>
+      c.slug.toLowerCase() === selectedCategory.toLowerCase() ||
+      c.name.toLowerCase() === selectedCategory.toLowerCase() ||
+      (c.id && c.id === selectedCategory)
+  );
 
   // Filter & Sort Logic
   const filteredProducts = useMemo(() => {
-    return ALL_PRODUCTS.filter((product) => {
+    return productsList.filter((product) => {
       // 1. Category Filter
       if (selectedCategory !== "all") {
-        const prodCat = product.category.trim().toLowerCase();
+        const prodCat = (product.category || "").trim().toLowerCase();
+        const prodCatId = (product as any).category_id;
         const catName = currentCategoryObj ? currentCategoryObj.name.trim().toLowerCase() : "";
         const catSlug = currentCategoryObj ? currentCategoryObj.slug.trim().toLowerCase() : selectedCategory.toLowerCase();
-        
-        const isMatch = prodCat === catName || prodCat === catSlug || (catName && (prodCat.includes(catName) || catName.includes(prodCat)));
+        const catId = currentCategoryObj?.id;
+
+        const isMatch =
+          (catId && prodCatId && prodCatId === catId) ||
+          prodCat === catName ||
+          prodCat === catSlug ||
+          prodCat === selectedCategory.toLowerCase() ||
+          (catName && (prodCat.includes(catName) || catName.includes(prodCat))) ||
+          (catSlug && (prodCat.includes(catSlug) || catSlug.includes(prodCat)));
+
         if (!isMatch) {
           return false;
         }
@@ -128,7 +208,7 @@ export const CategoryProducts: React.FC<CategoryProductsProps> = ({ initialCateg
       if (sortBy === "name-az") return a.name.localeCompare(b.name);
       return 0; // "featured" keep default order
     });
-  }, [selectedCategory, currentCategoryObj, searchTerm, priceFilter, sortBy]);
+  }, [productsList, categories, selectedCategory, currentCategoryObj, searchTerm, priceFilter, sortBy]);
 
   // Pagination Math
   const totalItems = filteredProducts.length;
@@ -210,13 +290,16 @@ export const CategoryProducts: React.FC<CategoryProductsProps> = ({ initialCateg
             All Products
           </button>
 
-          {CATEGORIES.map((cat) => {
-            const isSelected = selectedCategory === cat.slug;
+          {categories.map((cat) => {
+            const isSelected =
+              selectedCategory === cat.slug ||
+              selectedCategory.toLowerCase() === cat.name.toLowerCase() ||
+              (cat.id && selectedCategory === cat.id);
             return (
               <button
-                key={cat.id}
+                key={cat.id || cat.slug}
                 type="button"
-                onClick={() => handleCategoryChange(cat.slug)}
+                onClick={() => handleCategoryChange(cat.slug || cat.name.toLowerCase())}
                 className={`px-4 py-2.5 rounded-full text-xs sm:text-sm font-medium transition-all whitespace-nowrap cursor-pointer ${
                   isSelected
                     ? "bg-[#fdd602] text-gray-950 font-semibold shadow-xs"
@@ -291,164 +374,185 @@ export const CategoryProducts: React.FC<CategoryProductsProps> = ({ initialCateg
           </div>
         </div>
 
-        {/* Product Cards Grid */}
-        {currentItems.length > 0 ? (
+        {/* Main Products Display */}
+        {isLoading ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-            {currentItems.map((product) => {
-              const isAdded = addedProductId === product.id;
-              const inCart = cart.cartItemsMap[product.id] || 0;
-
-              return (
-                <div
-                  key={product.id}
-                  className="bg-white rounded-2xl sm:rounded-3xl p-3 sm:p-4 border border-gray-200 shadow-xs hover:shadow-card hover:border-gray-300 transition-all duration-300 flex flex-col justify-between group"
-                >
-                  {/* Product Content Container */}
-                  <div>
-                    {/* Clickable Image to Product Preview Page */}
-                    <Link
-                      href={`/product/${product.id}`}
-                      className="block relative w-full aspect-square rounded-xl sm:rounded-2xl overflow-hidden bg-gray-50 mb-3 flex items-center justify-center border border-gray-100 cursor-pointer"
-                    >
-                      <Image
-                        src={product.image}
-                        alt={product.name}
-                        fill
-                        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                        className="object-cover group-hover:scale-108 transition-transform duration-500"
-                      />
-                    </Link>
-
-                    {/* Left-Aligned Product Details */}
-                    <div className="text-left space-y-0.5 mb-2.5">
-                      <Link href={`/product/${product.id}`} className="block">
-                        <h3 className="text-sm sm:text-base font-bold text-gray-900 group-hover:text-brand-red transition-colors line-clamp-1 tracking-tight cursor-pointer">
-                          {product.name}
-                        </h3>
-                      </Link>
-                      <p className="text-[11px] sm:text-xs text-gray-500 font-normal">
-                        {product.weight}
-                      </p>
-
-                      {/* Price */}
-                      <div className="pt-0.5 flex items-baseline justify-start gap-1.5 text-left">
-                        <span className="text-base sm:text-lg font-bold text-gray-950">
-                          ₹{product.price}
-                        </span>
-                        {product.originalPrice && (
-                          <span className="text-[11px] sm:text-xs text-gray-400 line-through font-normal">
-                            ₹{product.originalPrice}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Add to Cart Red Button */}
-                  <button
-                    type="button"
-                    onClick={(e) => handleQuickAdd(e, product)}
-                    className={`w-full py-2.5 sm:py-3 px-3 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 sm:gap-2 transition-all shadow-xs cursor-pointer ${
-                      isAdded
-                        ? "bg-emerald-600 text-white"
-                        : "bg-brand-red hover:bg-brand-red-hover text-white active:scale-95"
-                    }`}
-                  >
-                    {isAdded ? (
-                      <>
-                        <Check className="w-4 h-4 stroke-[2.5]" />
-                        <span>Added!</span>
-                      </>
-                    ) : inCart > 0 ? (
-                      <>
-                        <ShoppingCart className="w-4 h-4" />
-                        <span>In Cart ({inCart})</span>
-                      </>
-                    ) : (
-                      <>
-                        <ShoppingCart className="w-4 h-4" />
-                        <span>Add to Cart</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              );
-            })}
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div
+                key={i}
+                className="bg-white rounded-2xl sm:rounded-3xl p-3 sm:p-4 border border-gray-100 shadow-xs animate-pulse space-y-3"
+              >
+                <div className="w-full aspect-square bg-gray-100 rounded-xl sm:rounded-2xl" />
+                <div className="h-4 bg-gray-100 rounded w-3/4" />
+                <div className="h-3 bg-gray-100 rounded w-1/2" />
+                <div className="h-5 bg-gray-100 rounded w-1/3" />
+                <div className="h-10 bg-gray-100 rounded-xl" />
+              </div>
+            ))}
           </div>
         ) : (
-          /* Empty Search / Filter State */
-          <div className="bg-white rounded-3xl p-12 text-center border border-gray-200/90 shadow-xs space-y-4 max-w-md mx-auto">
-            <div className="w-16 h-16 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center mx-auto">
-              <Filter className="w-7 h-7" />
-            </div>
-            <div className="space-y-1">
-              <h3 className="text-lg font-semibold text-gray-900">No Products Found</h3>
-              <p className="text-sm text-gray-500 font-normal">
-                No items match your selected filters in &ldquo;{currentCategoryObj?.name || "All Products"}&rdquo;.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={handleResetFilters}
-              className="px-6 py-2.5 rounded-full bg-[#fdd602] hover:bg-[#FFE600] text-gray-950 font-medium text-sm transition-all shadow-xs cursor-pointer"
-            >
-              Clear All Filters
-            </button>
-          </div>
-        )}
+          /* Products Grid with Dynamic Pagination (All Products and Category-filtered) */
+          <>
+            {currentItems.length > 0 ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+                {currentItems.map((product) => {
+                  const isAdded = addedProductId === product.id;
+                  const inCart = cart.cartItemsMap[product.id] || 0;
 
-        {/* Pagination Controls */}
-        {totalPages > 1 && (
-          <div className="bg-white rounded-2xl p-4 sm:p-5 border border-gray-200/90 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="text-xs sm:text-sm text-gray-500 font-normal">
-              Showing <strong className="text-gray-900 font-medium">{startIndex + 1}</strong>–
-              <strong className="text-gray-900 font-medium">{endIndex}</strong> of{" "}
-              <strong className="text-gray-900 font-medium">{totalItems}</strong> products
-            </div>
+                  return (
+                    <div
+                      key={product.id}
+                      className="bg-white rounded-2xl sm:rounded-3xl p-3 sm:p-4 border border-gray-200 shadow-xs hover:shadow-card hover:border-gray-300 transition-all duration-300 flex flex-col justify-between group"
+                    >
+                      {/* Product Content Container */}
+                      <div>
+                        {/* Clickable Image to Product Preview Page */}
+                        <Link
+                          href={`/product/${product.id}`}
+                          className="block relative w-full aspect-square rounded-xl sm:rounded-2xl overflow-hidden bg-gray-50 mb-3 flex items-center justify-center border border-gray-100 cursor-pointer"
+                        >
+                          <Image
+                            src={product.image}
+                            alt={product.name}
+                            fill
+                            unoptimized
+                            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                            className="object-cover group-hover:scale-108 transition-transform duration-500"
+                          />
+                        </Link>
 
-            <div className="flex items-center gap-1.5 sm:gap-2">
-              {/* Prev Button */}
-              <button
-                type="button"
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1}
-                className="p-2 sm:px-3 sm:py-2 rounded-xl border border-gray-200 text-xs sm:text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 transition-colors cursor-pointer"
-              >
-                <ChevronLeft className="w-4 h-4" />
-                <span className="hidden sm:inline font-normal">Previous</span>
-              </button>
+                        {/* Left-Aligned Product Details */}
+                        <div className="text-left space-y-0.5 mb-2.5">
+                          <Link href={`/product/${product.id}`} className="block">
+                            <h3 className="text-sm sm:text-base font-bold text-gray-900 group-hover:text-brand-red transition-colors line-clamp-1 tracking-tight cursor-pointer">
+                              {product.name}
+                            </h3>
+                          </Link>
+                          <p className="text-[11px] sm:text-xs text-gray-500 font-normal">
+                            {product.weight}
+                          </p>
 
-              {/* Page Number Pills */}
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => {
-                const isActive = pageNum === currentPage;
-                return (
+                          {/* Price */}
+                          <div className="pt-0.5 flex items-baseline justify-start gap-1.5 text-left">
+                            <span className="text-base sm:text-lg font-bold text-gray-950">
+                              ₹{product.price}
+                            </span>
+                            {product.originalPrice && (
+                              <span className="text-[11px] sm:text-xs text-gray-400 line-through font-normal">
+                                ₹{product.originalPrice}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Add to Cart Red Button */}
+                      <button
+                        type="button"
+                        onClick={(e) => handleQuickAdd(e, product)}
+                        className={`w-full py-2.5 sm:py-3 px-3 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 sm:gap-2 transition-all shadow-xs cursor-pointer ${
+                          isAdded
+                            ? "bg-emerald-600 text-white"
+                            : "bg-brand-red hover:bg-brand-red-hover text-white active:scale-95"
+                        }`}
+                      >
+                        {isAdded ? (
+                          <>
+                            <Check className="w-4 h-4 stroke-[2.5]" />
+                            <span>Added!</span>
+                          </>
+                        ) : inCart > 0 ? (
+                          <>
+                            <ShoppingCart className="w-4 h-4" />
+                            <span>In Cart ({inCart})</span>
+                          </>
+                        ) : (
+                          <>
+                            <ShoppingCart className="w-4 h-4" />
+                            <span>Add to Cart</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              /* Empty Search / Filter State */
+              <div className="bg-white rounded-3xl p-12 text-center border border-gray-200/90 shadow-xs space-y-4 max-w-md mx-auto">
+                <div className="w-16 h-16 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center mx-auto">
+                  <Filter className="w-7 h-7" />
+                </div>
+                <div className="space-y-1">
+                  <h3 className="text-lg font-semibold text-gray-900">No Products Found</h3>
+                  <p className="text-sm text-gray-500 font-normal">
+                    No items match your selected filters in &ldquo;{currentCategoryObj?.name || "All Products"}&rdquo;.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleResetFilters}
+                  className="px-6 py-2.5 rounded-full bg-[#fdd602] hover:bg-[#FFE600] text-gray-950 font-medium text-sm transition-all shadow-xs cursor-pointer"
+                >
+                  Clear All Filters
+                </button>
+              </div>
+            )}
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="bg-white rounded-2xl p-4 sm:p-5 border border-gray-200/90 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="text-xs sm:text-sm text-gray-500 font-normal">
+                  Showing <strong className="text-gray-900 font-medium">{startIndex + 1}</strong>–
+                  <strong className="text-gray-900 font-medium">{endIndex}</strong> of{" "}
+                  <strong className="text-gray-900 font-medium">{totalItems}</strong> products
+                </div>
+
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  {/* Prev Button */}
                   <button
-                    key={pageNum}
                     type="button"
-                    onClick={() => handlePageChange(pageNum)}
-                    className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl text-xs sm:text-sm font-medium transition-all cursor-pointer ${
-                      isActive
-                        ? "bg-[#fdd602] text-gray-950 font-semibold shadow-xs"
-                        : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
-                    }`}
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="p-2 sm:px-3 sm:py-2 rounded-xl border border-gray-200 text-xs sm:text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 transition-colors cursor-pointer"
                   >
-                    {pageNum}
+                    <ChevronLeft className="w-4 h-4" />
+                    <span className="hidden sm:inline font-normal">Previous</span>
                   </button>
-                );
-              })}
 
-              {/* Next Button */}
-              <button
-                type="button"
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className="p-2 sm:px-3 sm:py-2 rounded-xl border border-gray-200 text-xs sm:text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 transition-colors cursor-pointer"
-              >
-                <span className="hidden sm:inline font-normal">Next</span>
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
+                  {/* Page Number Pills */}
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => {
+                    const isActive = pageNum === currentPage;
+                    return (
+                      <button
+                        key={pageNum}
+                        type="button"
+                        onClick={() => handlePageChange(pageNum)}
+                        className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl text-xs sm:text-sm font-medium transition-all cursor-pointer ${
+                          isActive
+                            ? "bg-[#fdd602] text-gray-950 font-semibold shadow-xs"
+                            : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+
+                  {/* Next Button */}
+                  <button
+                    type="button"
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className="p-2 sm:px-3 sm:py-2 rounded-xl border border-gray-200 text-xs sm:text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 transition-colors cursor-pointer"
+                  >
+                    <span className="hidden sm:inline font-normal">Next</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         )}
 
       </div>

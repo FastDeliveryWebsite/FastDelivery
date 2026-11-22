@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -51,6 +51,34 @@ const SIX_CATEGORIES = [
 
 export const ShopByCategory: React.FC<ShopByCategoryProps> = ({ onSelectCategory: propOnSelectCategory }) => {
   const router = useRouter();
+  const [categories, setCategories] = useState(SIX_CATEGORIES);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchCategories = async () => {
+      try {
+        const res = await fetch("/api/categories", { cache: "no-store" });
+        const data = await res.json();
+        if (isMounted && data.success && Array.isArray(data.categories) && data.categories.length > 0) {
+          setCategories(
+            data.categories.map((c: any) => ({
+              id: c.id || c.slug,
+              slug: c.slug,
+              name: c.name,
+              image: c.image || "/home-page-images/grocery.jpg",
+            }))
+          );
+        }
+      } catch (err) {
+        console.warn("ShopByCategory: using fallback categories", err);
+      }
+    };
+
+    fetchCategories();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleSelect = (slug: string) => {
     if (propOnSelectCategory) {
@@ -59,6 +87,9 @@ export const ShopByCategory: React.FC<ShopByCategoryProps> = ({ onSelectCategory
       router.push(`/category/${slug}`);
     }
   };
+
+  // Only display up to 7 categories on the Home page (admin creates more -> click Browse All)
+  const displayedCategories = categories.slice(0, 7);
 
   return (
     <section className="py-10 sm:py-12 bg-white border-b border-gray-100 select-none font-sans font-normal">
@@ -81,27 +112,28 @@ export const ShopByCategory: React.FC<ShopByCategoryProps> = ({ onSelectCategory
           </Link>
         </div>
 
-        {/* All 6 Categories: Clean Responsive Circles */}
-        <div className="flex items-center justify-between gap-4 sm:gap-6 md:gap-8 lg:gap-10 overflow-x-auto md:overflow-visible no-scrollbar py-2 px-1">
-          {SIX_CATEGORIES.map((cat) => (
+        {/* Display up to 7 Categories Cleanly inside the Container */}
+        <div className="flex items-center justify-start md:justify-center gap-3 sm:gap-4 md:gap-6 lg:gap-7 overflow-x-auto md:overflow-visible no-scrollbar py-2 px-1">
+          {displayedCategories.map((cat) => (
             <div
-              key={cat.id}
+              key={cat.id || cat.slug}
               onClick={() => handleSelect(cat.slug)}
-              className="flex flex-col items-center group cursor-pointer shrink-0 md:shrink transition-transform active:scale-95"
+              className="flex flex-col items-center group cursor-pointer shrink-0 transition-transform active:scale-95"
             >
               {/* Circular Container with Responsive Image Inside */}
-              <div className="relative w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 lg:w-32 lg:h-32 xl:w-36 xl:h-36 rounded-full overflow-hidden bg-gray-100 border-[2px] border-gray-200 shadow-xs group-hover:scale-105 group-hover:border-brand-red group-hover:shadow-md transition-all duration-300">
+              <div className="relative w-18 h-18 sm:w-20 sm:h-20 md:w-24 md:h-24 lg:w-28 lg:h-28 rounded-full overflow-hidden bg-gray-100 border-[2px] border-gray-200 shadow-xs group-hover:scale-105 group-hover:border-brand-red group-hover:shadow-md transition-all duration-300">
                 <Image
                   src={cat.image}
                   alt={cat.name}
                   fill
-                  sizes="(max-width: 640px) 80px, (max-width: 768px) 96px, (max-width: 1024px) 112px, 144px"
+                  unoptimized
+                  sizes="(max-width: 640px) 72px, (max-width: 768px) 80px, (max-width: 1024px) 96px, 112px"
                   className="object-cover group-hover:scale-110 transition-transform duration-500"
                 />
               </div>
 
               {/* Category Name Outside Below Circle */}
-              <span className="mt-2.5 sm:mt-3 text-xs sm:text-sm md:text-base font-medium text-gray-900 group-hover:text-brand-red transition-colors text-center whitespace-nowrap block tracking-tight">
+              <span className="mt-2 text-xs sm:text-sm font-medium text-gray-900 group-hover:text-brand-red transition-colors text-center line-clamp-1 max-w-[85px] sm:max-w-[100px] md:max-w-[120px] block tracking-tight">
                 {cat.name}
               </span>
             </div>

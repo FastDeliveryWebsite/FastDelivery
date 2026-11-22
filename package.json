@@ -7,10 +7,16 @@
     "clean": "node -e \"try { require('fs').rmSync('.next', { recursive: true, force: true }) } catch(e){}\"",
     "build": "next build",
     "start": "next start",
+    "seed": "node scripts/seed.mjs",
     "lint": "next lint"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.119.2",
+    "@types/bcryptjs": "^2.4.6",
+    "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
+    "imagekit": "^6.0.0",
+    "jose": "^6.2.18",
     "lucide-react": "^0.453.0",
     "next": "^14.2.15",
     "react": "^18.3.1",

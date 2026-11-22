@@ -110,8 +110,10 @@ export const Footer: React.FC = () => {
 
           <div className="flex items-center gap-4 font-medium text-gray-600">
             <Link href="/about" className="hover:text-brand-red transition-colors">About Us</Link>
-            <span>•</span>
+            {/* <span>•</span> */}
             <Link href="/contact" className="hover:text-brand-red transition-colors">Contact Us</Link>
+            {/* <span>•</span>
+            <Link href="/admin/login" className="hover:text-brand-red transition-colors">Admin Portal</Link> */}
           </div>
 
           <div className="flex items-center gap-1.5 text-gray-700 font-medium">

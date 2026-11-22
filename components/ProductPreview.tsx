@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -15,6 +15,7 @@ import {
   Truck,
   RotateCcw,
   Sparkles,
+  Loader2,
 } from "lucide-react";
 import { ALL_PRODUCTS, Product } from "@/data/mockData";
 import { useCart } from "@/context/CartContext";
@@ -25,9 +26,65 @@ export const ProductPreview: React.FC = () => {
   const cart = useCart();
   const productId = params?.id as string;
 
-  const product = ALL_PRODUCTS.find((p) => p.id === productId);
+  const [product, setProduct] = useState<Product | null>(() => {
+    return ALL_PRODUCTS.find((p) => p.id === productId) || null;
+  });
+  const [isLoading, setIsLoading] = useState(!product);
   const [justAdded, setJustAdded] = useState(false);
   const [quantity, setQuantity] = useState(1);
+
+  // Fetch product from database if not found in mock array
+  useEffect(() => {
+    const foundLocal = ALL_PRODUCTS.find((p) => p.id === productId);
+    if (foundLocal) {
+      setProduct(foundLocal);
+      setIsLoading(false);
+      return;
+    }
+
+    const fetchDbProduct = async () => {
+      try {
+        const res = await fetch("/api/admin/products");
+        const data = await res.json();
+        if (data.success && Array.isArray(data.products)) {
+          const matched = data.products.find((p: any) => p.id === productId);
+          if (matched) {
+            setProduct({
+              id: matched.id,
+              name: matched.name,
+              weight: matched.weight || "1 Unit",
+              price: Number(matched.price),
+              originalPrice: matched.original_price ? Number(matched.original_price) : undefined,
+              image: matched.image || "/placeholder.png",
+              category: matched.category_name || "General",
+              inStock: true,
+              specifications: Array.isArray(matched.specifications)
+                ? matched.specifications.reduce((acc: any, curr: any) => {
+                    if (curr?.label) acc[curr.label] = curr.value;
+                    return acc;
+                  }, {})
+                : matched.specifications,
+            });
+          }
+        }
+      } catch (err) {
+        console.warn("Could not fetch product from API:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchDbProduct();
+  }, [productId]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center px-4 py-16 text-center">
+        <Loader2 className="w-8 h-8 animate-spin text-brand-red mb-3" />
+        <p className="text-gray-500 font-medium text-sm">Loading product details...</p>
+      </div>
+    );
+  }
 
   if (!product) {
     return (
@@ -105,6 +162,7 @@ export const ProductPreview: React.FC = () => {
                   alt={product.name}
                   fill
                   priority
+                  unoptimized
                   className="object-cover group-hover:scale-105 transition-transform duration-500"
                   sizes="(max-width: 1024px) 100vw, 500px"
                 />
@@ -304,6 +362,7 @@ export const ProductPreview: React.FC = () => {
                         src={item.image}
                         alt={item.name}
                         fill
+                        unoptimized
                         sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
                         className="object-cover group-hover:scale-108 transition-transform duration-500"
                       />

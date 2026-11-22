@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import {
   ShoppingBag,
@@ -12,7 +12,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { CATEGORIES } from "@/data/mockData";
+import { CATEGORIES, Category } from "@/data/mockData";
 import { useCart } from "@/context/CartContext";
 
 interface CategoryBarProps {
@@ -37,6 +37,34 @@ export const CategoryBar: React.FC<CategoryBarProps> = ({
   const pathname = usePathname();
   const cart = useCart();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [categories, setCategories] = useState<Category[]>(CATEGORIES);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchCategories = async () => {
+      try {
+        const res = await fetch("/api/categories", { cache: "no-store" });
+        const data = await res.json();
+        if (isMounted && data.success && Array.isArray(data.categories) && data.categories.length > 0) {
+          setCategories(
+            data.categories.map((c: any) => ({
+              id: c.id || c.slug,
+              name: c.name,
+              slug: c.slug,
+              iconName: "ShoppingBag",
+              image: c.image || "/placeholder.png",
+            }))
+          );
+        }
+      } catch (err) {
+        console.warn("CategoryBar: using fallback categories", err);
+      }
+    };
+    fetchCategories();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Derive active category from pathname or context
   const slugFromPath = pathname?.startsWith("/category/")
@@ -82,11 +110,11 @@ export const CategoryBar: React.FC<CategoryBarProps> = ({
           className="flex items-center justify-start md:justify-center gap-2 sm:gap-5 lg:gap-6 py-2.5 sm:py-3 overflow-x-auto scroll-smooth no-scrollbar w-full px-1"
           style={{ scrollSnapType: "x mandatory" }}
         >
-          {CATEGORIES.map((cat) => {
+          {categories.map((cat) => {
             const isSelected = activeCategory === cat.slug;
             return (
               <button
-                key={cat.id}
+                key={cat.id || cat.slug}
                 onClick={() => handleSelect(cat.slug)}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg whitespace-nowrap text-xs sm:text-sm transition-all shrink-0 cursor-pointer ${
                   isSelected
@@ -95,7 +123,7 @@ export const CategoryBar: React.FC<CategoryBarProps> = ({
                 }`}
                 style={{ scrollSnapAlign: "start" }}
               >
-                {CATEGORY_ICONS[cat.slug]}
+                {CATEGORY_ICONS[cat.slug] || <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5 text-brand-red shrink-0" />}
                 <span>{cat.name.replace("& Staples", "").replace("Products", "")}</span>
               </button>
             );

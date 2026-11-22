@@ -35,6 +35,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const cart = useCart();
   
   const [searchTerm, setSearchTerm] = useState("");
+  const [productsList, setProductsList] = useState<Product[]>(ALL_PRODUCTS);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [addedProductId, setAddedProductId] = useState<string | null>(null);
@@ -45,17 +46,47 @@ export const Navbar: React.FC<NavbarProps> = ({
   const cartCount = propCartCount !== undefined ? propCartCount : cart.cartCount;
   const handleOpenCart = propOnOpenCart || cart.openCart;
 
+  useEffect(() => {
+    let isMounted = true;
+    const fetchNavbarProducts = async () => {
+      try {
+        const res = await fetch("/api/products");
+        const data = await res.json();
+        if (isMounted && data.success && Array.isArray(data.products) && data.products.length > 0) {
+          setProductsList(
+            data.products.map((p: any) => ({
+              id: p.id,
+              name: p.name,
+              weight: p.weight || "1 Unit",
+              price: Number(p.price),
+              originalPrice: p.original_price ? Number(p.original_price) : undefined,
+              image: p.image || "/placeholder.png",
+              category: p.category_name || "General",
+              inStock: true,
+            }))
+          );
+        }
+      } catch (err) {
+        console.warn("Navbar: using fallback products", err);
+      }
+    };
+    fetchNavbarProducts();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   // Filter products based on search term
   const searchResults = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
     if (!q) return [];
-    return ALL_PRODUCTS.filter(
+    return productsList.filter(
       (p) =>
         p.name.toLowerCase().includes(q) ||
         p.category.toLowerCase().includes(q) ||
         p.weight.toLowerCase().includes(q)
     );
-  }, [searchTerm]);
+  }, [searchTerm, productsList]);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -149,6 +180,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                           src={product.image}
                           alt={product.name}
                           fill
+                          unoptimized
                           className="object-cover group-hover:scale-105 transition-transform"
                         />
                       </div>
