@@ -1,9 +1,12 @@
 "use client";
 
-import React, { createContext, useContext, useState, useMemo, useRef } from "react";
+import React, { createContext, useContext, useState, useMemo, useRef, useEffect } from "react";
 import { Sparkles, X } from "lucide-react";
 import { Product } from "@/data/mockData";
 import { CartItem } from "@/components/CartDrawer";
+import { useAuth } from "./AuthContext";
+
+const CART_STORAGE_KEY = "fast_delivery_cart_items_v1";
 
 interface CartContextType {
   cartItems: CartItem[];
@@ -11,11 +14,13 @@ interface CartContextType {
   cartItemsMap: Record<string, number>;
   isCartOpen: boolean;
   isOrderModalOpen: boolean;
+  isLoaded: boolean;
   activeCategory: string | null;
   toastMessage: string | null;
   addToCart: (product: Product) => void;
   updateQuantity: (productId: string, quantity: number) => void;
   removeItem: (productId: string) => void;
+  clearCart: () => void;
   openCart: () => void;
   closeCart: () => void;
   openOrderModal: () => void;
@@ -30,12 +35,50 @@ interface CartContextType {
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const auth = useAuth();
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [isLoaded, setIsLoaded] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Restore cart from localStorage on initial client mount
+  useEffect(() => {
+    try {
+      const savedCart = localStorage.getItem(CART_STORAGE_KEY);
+      if (savedCart) {
+        const parsed = JSON.parse(savedCart);
+        if (Array.isArray(parsed)) {
+          // Validate structure
+          const validItems = parsed.filter(
+            (item: any) =>
+              item &&
+              item.product &&
+              item.product.id &&
+              typeof item.quantity === "number" &&
+              item.quantity > 0
+          );
+          setCartItems(validItems);
+        }
+      }
+    } catch (err) {
+      console.warn("Could not restore cart from localStorage:", err);
+    } finally {
+      setIsLoaded(true);
+    }
+  }, []);
+
+  // Save cart to localStorage whenever cartItems changes (only after initial hydration load)
+  useEffect(() => {
+    if (!isLoaded) return;
+    try {
+      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cartItems));
+    } catch (err) {
+      console.warn("Could not save cart to localStorage:", err);
+    }
+  }, [cartItems, isLoaded]);
 
   const cartCount = useMemo(
     () => cartItems.reduce((sum, item) => sum + item.quantity, 0),
@@ -62,6 +105,13 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const addToCart = (product: Product) => {
+    if (!auth.isAuthenticated) {
+      auth.openAuthPrompt(
+        "Please register or log in first to add items to your cart and start shopping!"
+      );
+      return;
+    }
+
     setCartItems((prev) => {
       const existing = prev.find((item) => item.product.id === product.id);
       if (existing) {
@@ -91,18 +141,40 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setCartItems((prev) => prev.filter((item) => item.product.id !== productId));
   };
 
-  const openCart = () => setIsCartOpen(true);
+  const openCart = () => {
+    if (!auth.isAuthenticated) {
+      auth.openAuthPrompt(
+        "Please register or log in first to view your cart and start shopping!"
+      );
+      return;
+    }
+    setIsCartOpen(true);
+  };
+
   const closeCart = () => setIsCartOpen(false);
 
   const openOrderModal = () => setIsOrderModalOpen(false); // Temporarily stopped
   const closeOrderModal = () => setIsOrderModalOpen(false);
 
   const proceedToCheckout = () => {
+    if (!auth.isAuthenticated) {
+      auth.openAuthPrompt(
+        "Please register or log in first to checkout and place your order!"
+      );
+      return;
+    }
     setIsOrderModalOpen(false);
   };
 
-  const orderSuccess = () => {
+  const clearCart = () => {
     setCartItems([]);
+    try {
+      localStorage.removeItem(CART_STORAGE_KEY);
+    } catch {}
+  };
+
+  const orderSuccess = () => {
+    clearCart();
     setIsOrderModalOpen(false);
   };
 
@@ -121,11 +193,13 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         cartItemsMap,
         isCartOpen,
         isOrderModalOpen,
+        isLoaded,
         activeCategory,
         toastMessage,
         addToCart,
         updateQuantity,
         removeItem,
+        clearCart,
         openCart,
         closeCart,
         openOrderModal,

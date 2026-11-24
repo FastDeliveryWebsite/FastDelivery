@@ -111,7 +111,15 @@ export const CategoryBar: React.FC<CategoryBarProps> = ({
           style={{ scrollSnapType: "x mandatory" }}
         >
           {categories.map((cat) => {
-            const isSelected = activeCategory === cat.slug;
+            const normActive = (activeCategory || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+            const normSlug = (cat.slug || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+            const normName = (cat.name || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+            const isSelected =
+              Boolean(activeCategory) &&
+              (activeCategory === cat.slug ||
+               (normActive && normActive === normSlug) ||
+               (normActive && normActive === normName) ||
+               (cat.id && activeCategory === cat.id));
             return (
               <button
                 key={cat.id || cat.slug}

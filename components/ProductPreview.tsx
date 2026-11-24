@@ -60,9 +60,9 @@ export const ProductPreview: React.FC = () => {
               inStock: true,
               specifications: Array.isArray(matched.specifications)
                 ? matched.specifications.reduce((acc: any, curr: any) => {
-                    if (curr?.label) acc[curr.label] = curr.value;
-                    return acc;
-                  }, {})
+                  if (curr?.label) acc[curr.label] = curr.value;
+                  return acc;
+                }, {})
                 : matched.specifications,
             });
           }
@@ -277,7 +277,7 @@ export const ProductPreview: React.FC = () => {
                         <span>
                           {quantityInCart > 0
                             ? `Add More (Cart has ${quantityInCart})`
-                            : `Add to Cart • ₹${product.price * quantity}`}
+                            : `Add to Cart `}
                         </span>
                       </>
                     )}

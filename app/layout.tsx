@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { Providers } from "@/components/Providers";
 
 export const metadata: Metadata = {
   title: "Fast Delivery | Daily Essentials Delivered to Your Doorstep in Bilariyaganj",
@@ -32,7 +33,7 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-screen flex flex-col bg-[#F8F9FA] text-gray-900 antialiased font-sans">
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

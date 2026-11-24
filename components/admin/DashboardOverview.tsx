@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 
 interface DashboardOverviewProps {
-  onNavigateTab: (tab: "categories" | "products") => void;
+  onNavigateTab: (tab: "orders" | "categories" | "products") => void;
 }
 
 export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigateTab }) => {
@@ -197,9 +197,14 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
               Sample live order feeds for review and dispatch approval
             </p>
           </div>
-          <span className="text-xs font-semibold text-brand-red bg-red-50 px-2.5 py-1 rounded-lg border border-red-100">
-            Live Demo Feed
-          </span>
+          <button
+            type="button"
+            onClick={() => onNavigateTab("orders")}
+            className="text-xs font-bold text-white bg-brand-red hover:bg-brand-red-hover px-3 py-1.5 rounded-xl shadow-xs transition-colors cursor-pointer flex items-center gap-1.5"
+          >
+            <ShoppingBag className="w-3.5 h-3.5" />
+            <span>Manage Orders</span>
+          </button>
         </div>
 
         <div className="overflow-x-auto">

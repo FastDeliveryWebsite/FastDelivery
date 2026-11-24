@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { 
   Search, 
   Plus, 
@@ -30,11 +30,17 @@ interface CategoryProductsProps {
 
 export const CategoryProducts: React.FC<CategoryProductsProps> = ({ initialCategorySlug }) => {
   const params = useParams();
+  const searchParams = useSearchParams();
   const router = useRouter();
   const cart = useCart();
 
-  // Determine current active category from props, params, or default "all"
-  const rawSlug = (params?.slug as string) || initialCategorySlug || "all";
+  // Helper to normalize strings for robust comparison (e.g., "test 3", "test-3", "test3" all become "test3")
+  const normalizeCat = (val?: string | null) =>
+    (val || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+
+  // Determine current active category from props, params, search query params, or default "all"
+  const rawQueryCat = searchParams?.get("category") || searchParams?.get("categoryId") || searchParams?.get("cat");
+  const rawSlug = (params?.slug as string) || rawQueryCat || initialCategorySlug || "all";
   const slugFromParam = decodeURIComponent(rawSlug);
   
   const [selectedCategory, setSelectedCategory] = useState<string>(slugFromParam);
@@ -108,13 +114,14 @@ export const CategoryProducts: React.FC<CategoryProductsProps> = ({ initialCateg
     };
   }, []);
 
-  // Sync state if URL param changes
+  // Sync state if URL param or query param changes
   useEffect(() => {
-    if (params?.slug) {
-      setSelectedCategory(decodeURIComponent(params.slug as string));
+    const rawParam = (params?.slug as string) || searchParams?.get("category") || searchParams?.get("categoryId") || searchParams?.get("cat");
+    if (rawParam) {
+      setSelectedCategory(decodeURIComponent(rawParam));
       setCurrentPage(1);
     }
-  }, [params?.slug]);
+  }, [params?.slug, searchParams]);
 
   // Handle category tab change
   const handleCategoryChange = (slug: string) => {
@@ -152,32 +159,45 @@ export const CategoryProducts: React.FC<CategoryProductsProps> = ({ initialCateg
     router.push("/category");
   };
 
-  // Find active category metadata (supports slug, name, or id matching)
-  const currentCategoryObj = categories.find(
-    (c) =>
-      c.slug.toLowerCase() === selectedCategory.toLowerCase() ||
-      c.name.toLowerCase() === selectedCategory.toLowerCase() ||
-      (c.id && c.id === selectedCategory)
-  );
+  // Find active category metadata (supports slug, name, id, or normalized string matching)
+  const currentCategoryObj = useMemo(() => {
+    if (selectedCategory === "all") return null;
+    const normSelected = normalizeCat(selectedCategory);
+    return (
+      categories.find((c) => {
+        if (c.id && (c.id === selectedCategory || normalizeCat(c.id) === normSelected)) return true;
+        if (c.slug && (c.slug.toLowerCase() === selectedCategory.toLowerCase() || normalizeCat(c.slug) === normSelected)) return true;
+        if (c.name && (c.name.toLowerCase() === selectedCategory.toLowerCase() || normalizeCat(c.name) === normSelected)) return true;
+        return false;
+      }) || null
+    );
+  }, [categories, selectedCategory]);
 
   // Filter & Sort Logic
   const filteredProducts = useMemo(() => {
     return productsList.filter((product) => {
       // 1. Category Filter
       if (selectedCategory !== "all") {
-        const prodCat = (product.category || "").trim().toLowerCase();
+        const prodCat = (product.category || "").trim();
         const prodCatId = (product as any).category_id;
-        const catName = currentCategoryObj ? currentCategoryObj.name.trim().toLowerCase() : "";
-        const catSlug = currentCategoryObj ? currentCategoryObj.slug.trim().toLowerCase() : selectedCategory.toLowerCase();
+        const normSelected = normalizeCat(selectedCategory);
+        const normProdCat = normalizeCat(prodCat);
+        const normCatName = currentCategoryObj ? normalizeCat(currentCategoryObj.name) : "";
+        const normCatSlug = currentCategoryObj ? normalizeCat(currentCategoryObj.slug) : "";
         const catId = currentCategoryObj?.id;
 
         const isMatch =
-          (catId && prodCatId && prodCatId === catId) ||
-          prodCat === catName ||
-          prodCat === catSlug ||
-          prodCat === selectedCategory.toLowerCase() ||
-          (catName && (prodCat.includes(catName) || catName.includes(prodCat))) ||
-          (catSlug && (prodCat.includes(catSlug) || catSlug.includes(prodCat)));
+          // ID match
+          (catId && prodCatId && String(prodCatId) === String(catId)) ||
+          (prodCatId && String(prodCatId) === String(selectedCategory)) ||
+          // Normalized exact equality (e.g. "test 3" vs "test3" vs "test-3")
+          (normProdCat && normProdCat === normSelected) ||
+          (normProdCat && normCatName && normProdCat === normCatName) ||
+          (normProdCat && normCatSlug && normProdCat === normCatSlug) ||
+          // Substring / partial matching
+          (normProdCat && normSelected && (normProdCat.includes(normSelected) || normSelected.includes(normProdCat))) ||
+          (normProdCat && normCatName && (normProdCat.includes(normCatName) || normCatName.includes(normProdCat))) ||
+          (normProdCat && normCatSlug && (normProdCat.includes(normCatSlug) || normCatSlug.includes(normProdCat)));
 
         if (!isMatch) {
           return false;
@@ -249,7 +269,7 @@ export const CategoryProducts: React.FC<CategoryProductsProps> = ({ initialCateg
           </Link>
           <span>/</span>
           <span className="text-gray-900 font-medium">
-            {currentCategoryObj ? currentCategoryObj.name : "All Products"}
+            {currentCategoryObj ? currentCategoryObj.name : selectedCategory !== "all" ? selectedCategory : "All Products"}
           </span>
         </div>
 
@@ -261,7 +281,7 @@ export const CategoryProducts: React.FC<CategoryProductsProps> = ({ initialCateg
               <span>Bilariyaganj Local Catalog</span>
             </div>
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900">
-              {currentCategoryObj ? currentCategoryObj.name : "All Daily Essentials"}
+              {currentCategoryObj ? currentCategoryObj.name : selectedCategory !== "all" ? selectedCategory : "All Daily Essentials"}
             </h1>
             <p className="text-sm sm:text-base text-gray-600 font-normal max-w-xl">
               Fresh stock sourced from trusted Bilariyaganj mandis and verified shops. Fast 15–30 minute delivery to your doorstep.
@@ -294,7 +314,9 @@ export const CategoryProducts: React.FC<CategoryProductsProps> = ({ initialCateg
             const isSelected =
               selectedCategory === cat.slug ||
               selectedCategory.toLowerCase() === cat.name.toLowerCase() ||
-              (cat.id && selectedCategory === cat.id);
+              (cat.id && selectedCategory === cat.id) ||
+              normalizeCat(selectedCategory) === normalizeCat(cat.slug) ||
+              normalizeCat(selectedCategory) === normalizeCat(cat.name);
             return (
               <button
                 key={cat.id || cat.slug}

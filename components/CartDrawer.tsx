@@ -2,7 +2,8 @@
 
 import React from "react";
 import Image from "next/image";
-import { X, Trash2, Plus, Minus, ShoppingBag } from "lucide-react";
+import Link from "next/link";
+import { X, Trash2, Plus, Minus, ShoppingBag, ArrowRight } from "lucide-react";
 import { Product } from "@/data/mockData";
 import { useCart } from "@/context/CartContext";
 
@@ -137,13 +138,22 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
             )}
           </div>
 
-          {/* Footer: Cart Total Only (No button, No delivery line) */}
+          {/* Footer: Cart Total & Checkout Button */}
           {items.length > 0 && (
-            <div className="p-5 sm:p-6 bg-gray-50 border-t border-gray-200">
+            <div className="p-5 sm:p-6 bg-gray-50 border-t border-gray-200 space-y-3">
               <div className="flex justify-between items-center font-black text-gray-950 text-xl">
                 <span>Total Amount</span>
                 <span>₹{totalAmount}</span>
               </div>
+
+              <Link
+                href="/checkout"
+                onClick={onClose}
+                className="w-full bg-brand-red hover:bg-brand-red-hover active:scale-98 text-white font-bold text-base py-3.5 px-4 rounded-2xl shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <span>Proceed to Checkout</span>
+                <ArrowRight className="w-5 h-5" />
+              </Link>
             </div>
           )}
 

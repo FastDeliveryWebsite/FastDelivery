@@ -112,28 +112,28 @@ export const ShopByCategory: React.FC<ShopByCategoryProps> = ({ onSelectCategory
           </Link>
         </div>
 
-        {/* Display up to 7 Categories Cleanly inside the Container */}
-        <div className="flex items-center justify-start md:justify-center gap-3 sm:gap-4 md:gap-6 lg:gap-7 overflow-x-auto md:overflow-visible no-scrollbar py-2 px-1">
+        {/* Display up to 7 Categories Cleanly inside the Container with Enlarged Visuals */}
+        <div className="flex items-center justify-start md:justify-center gap-4 sm:gap-5 md:gap-7 lg:gap-8 overflow-x-auto md:overflow-visible no-scrollbar py-3 px-1">
           {displayedCategories.map((cat) => (
             <div
               key={cat.id || cat.slug}
               onClick={() => handleSelect(cat.slug)}
               className="flex flex-col items-center group cursor-pointer shrink-0 transition-transform active:scale-95"
             >
-              {/* Circular Container with Responsive Image Inside */}
-              <div className="relative w-18 h-18 sm:w-20 sm:h-20 md:w-24 md:h-24 lg:w-28 lg:h-28 rounded-full overflow-hidden bg-gray-100 border-[2px] border-gray-200 shadow-xs group-hover:scale-105 group-hover:border-brand-red group-hover:shadow-md transition-all duration-300">
+              {/* Circular Container with Enlarged Responsive Image Inside */}
+              <div className="relative w-22 h-22 sm:w-28 sm:h-28 md:w-32 md:h-32 lg:w-36 lg:h-36 rounded-full overflow-hidden bg-gray-100 border-[2.5px] border-gray-200 shadow-xs group-hover:scale-105 group-hover:border-brand-red group-hover:shadow-lg transition-all duration-300">
                 <Image
                   src={cat.image}
                   alt={cat.name}
                   fill
                   unoptimized
-                  sizes="(max-width: 640px) 72px, (max-width: 768px) 80px, (max-width: 1024px) 96px, 112px"
+                  sizes="(max-width: 640px) 90px, (max-width: 768px) 112px, (max-width: 1024px) 128px, 144px"
                   className="object-cover group-hover:scale-110 transition-transform duration-500"
                 />
               </div>
 
               {/* Category Name Outside Below Circle */}
-              <span className="mt-2 text-xs sm:text-sm font-medium text-gray-900 group-hover:text-brand-red transition-colors text-center line-clamp-1 max-w-[85px] sm:max-w-[100px] md:max-w-[120px] block tracking-tight">
+              <span className="mt-2.5 text-xs sm:text-sm md:text-base font-semibold text-gray-900 group-hover:text-brand-red transition-colors text-center line-clamp-1 max-w-[95px] sm:max-w-[120px] md:max-w-[140px] block tracking-tight">
                 {cat.name}
               </span>
             </div>

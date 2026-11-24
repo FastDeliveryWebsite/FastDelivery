@@ -133,11 +133,15 @@ export const ProductManagement: React.FC = () => {
       p.category_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.weight.toLowerCase().includes(searchTerm.toLowerCase());
 
+    const normSelected = selectedCategory.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const normProdCat = (p.category_name || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+
     const matchesCategory =
       selectedCategory === "all" ||
       p.category_id === selectedCategory ||
       p.category_name === selectedCategory ||
-      p.category_name?.toLowerCase() === selectedCategory.toLowerCase();
+      p.category_name?.toLowerCase() === selectedCategory.toLowerCase() ||
+      (normSelected && normSelected === normProdCat);
 
     return matchesSearch && matchesCategory;
   });

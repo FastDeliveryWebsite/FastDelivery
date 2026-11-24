@@ -27,11 +27,35 @@ export async function PUT(
       );
     }
 
+    // Safely resolve category_id (must be a valid UUID or null for PostgreSQL)
+    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    let resolvedCategoryId: string | null = null;
+
+    if (category_id && UUID_REGEX.test(String(category_id))) {
+      resolvedCategoryId = String(category_id);
+    } else if (category_id || category_name) {
+      try {
+        const searchKey = category_id || category_name;
+        const { data: matchedCat } = await supabaseAdmin
+          .from("categories")
+          .select("id")
+          .or(`slug.eq.${searchKey},name.ilike.%${category_name || searchKey}%`)
+          .limit(1)
+          .maybeSingle();
+
+        if (matchedCat?.id && UUID_REGEX.test(matchedCat.id)) {
+          resolvedCategoryId = matchedCat.id;
+        }
+      } catch (catLookupErr) {
+        console.warn("Category lookup fallback on update:", catLookupErr);
+      }
+    }
+
     const { data, error } = await supabaseAdmin
       .from("products")
       .update({
         name: name.trim(),
-        category_id: category_id || null,
+        category_id: resolvedCategoryId,
         category_name: category_name ? category_name.trim() : undefined,
         weight: weight ? weight.trim() : "1 Unit",
         price: Number(price),

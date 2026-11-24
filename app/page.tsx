@@ -1,4 +1,3 @@
-import { CartProvider } from "@/context/CartContext";
 import { Navbar } from "@/components/Navbar";
 import { CategoryBar } from "@/components/CategoryBar";
 import { HeroSection } from "@/components/HeroSection";
@@ -16,23 +15,21 @@ import { OrderModal } from "@/components/OrderModal";
 
 export default function HomePage() {
   return (
-    <CartProvider>
-      <main className="min-h-screen flex flex-col font-sans">
-        <Navbar />
-        <CategoryBar />
-        <HeroSection />
-        <ShopByCategory />
-        <PopularProducts />
-        <RecentlyAdded />
-        <PromotionalBanner />
-        <HowItWorks />
-        <CustomerTestimonials />
-        {/* <WhyChooseUs /> */}
-        <WhatsAppCTA />
-        <Footer />
-        <CartDrawer />
-        <OrderModal />
-      </main>
-    </CartProvider>
+    <main className="min-h-screen flex flex-col font-sans">
+      <Navbar />
+      <CategoryBar />
+      <HeroSection />
+      <ShopByCategory />
+      <PopularProducts />
+      <RecentlyAdded />
+      <PromotionalBanner />
+      <HowItWorks />
+      <CustomerTestimonials />
+      {/* <WhyChooseUs /> */}
+      <WhatsAppCTA />
+      <Footer />
+      <CartDrawer />
+      <OrderModal />
+    </main>
   );
 }

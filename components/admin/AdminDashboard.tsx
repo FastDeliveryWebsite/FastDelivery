@@ -3,8 +3,9 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Menu, X, ShieldCheck, Database, Key } from "lucide-react";
-import { AdminSidebar } from "./AdminSidebar";
+import { AdminSidebar, AdminTab } from "./AdminSidebar";
 import { DashboardOverview } from "./DashboardOverview";
+import { OrderManagement } from "./orders/OrderManagement";
 import { CategoryManagement } from "./categories/CategoryManagement";
 import { ProductManagement } from "./products/ProductManagement";
 import { Logo } from "@/components/Logo";
@@ -19,7 +20,7 @@ interface AdminUser {
 export const AdminDashboard: React.FC = () => {
   const router = useRouter();
   const [admin, setAdmin] = useState<AdminUser | null>(null);
-  const [activeTab, setActiveTab] = useState<"dashboard" | "categories" | "products">("dashboard");
+  const [activeTab, setActiveTab] = useState<AdminTab>("dashboard");
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
@@ -53,7 +54,7 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
-  const handleTabChange = (tab: "dashboard" | "categories" | "products") => {
+  const handleTabChange = (tab: AdminTab) => {
     setActiveTab(tab);
     setIsMobileSidebarOpen(false);
   };
@@ -127,6 +128,7 @@ export const AdminDashboard: React.FC = () => {
         {activeTab === "dashboard" && (
           <DashboardOverview onNavigateTab={(tab) => setActiveTab(tab)} />
         )}
+        {activeTab === "orders" && <OrderManagement />}
         {activeTab === "categories" && <CategoryManagement />}
         {activeTab === "products" && <ProductManagement />}
 

@@ -2,12 +2,14 @@
 
 import React from "react";
 import Link from "next/link";
-import { LayoutDashboard, FolderTree, Package, LogOut, ExternalLink, ShieldCheck } from "lucide-react";
+import { LayoutDashboard, ShoppingBag, FolderTree, Package, LogOut, ExternalLink, ShieldCheck } from "lucide-react";
 import { Logo } from "@/components/Logo";
 
+export type AdminTab = "dashboard" | "orders" | "categories" | "products";
+
 interface AdminSidebarProps {
-  activeTab: "dashboard" | "categories" | "products";
-  onTabChange: (tab: "dashboard" | "categories" | "products") => void;
+  activeTab: AdminTab;
+  onTabChange: (tab: AdminTab) => void;
   adminEmail?: string;
   onLogout: () => void;
   isLoggingOut?: boolean;
@@ -56,7 +58,21 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
             <span>Dashboard</span>
           </button>
 
-          {/* 2. Categories Tab */}
+          {/* 2. Customer Orders Tab */}
+          <button
+            type="button"
+            onClick={() => onTabChange("orders")}
+            className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
+              activeTab === "orders"
+                ? "bg-brand-red text-white shadow-xs"
+                : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+            }`}
+          >
+            <ShoppingBag className={`w-4 h-4 ${activeTab === "orders" ? "text-white" : "text-gray-500"}`} />
+            <span>Orders & Dispatch</span>
+          </button>
+
+          {/* 3. Categories Tab */}
           <button
             type="button"
             onClick={() => onTabChange("categories")}

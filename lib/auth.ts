@@ -2,6 +2,7 @@ import { SignJWT } from "jose/jwt/sign";
 import { jwtVerify } from "jose/jwt/verify";
 
 export const ADMIN_COOKIE_NAME = "fd_admin_token";
+export const USER_COOKIE_NAME = "fd_user_token";
 
 const JWT_SECRET_STRING =
   process.env.JWT_SECRET ||
@@ -16,6 +17,16 @@ export interface AdminJWTPayload {
   role: "admin";
 }
 
+export interface UserJWTPayload {
+  id: string;
+  email: string;
+  name: string;
+  role: "customer";
+  phone?: string;
+  address?: string;
+  pincode?: string;
+}
+
 /**
  * Sign a new JWT token for authenticated admins (Valid for 7 days)
  */
@@ -28,7 +39,7 @@ export async function signAdminToken(payload: AdminJWTPayload): Promise<string> 
 }
 
 /**
- * Verify and decode an existing JWT token
+ * Verify and decode an existing Admin JWT token
  */
 export async function verifyAdminToken(
   token: string
@@ -41,6 +52,42 @@ export async function verifyAdminToken(
         email: String(payload.email || ""),
         name: String(payload.name || "Admin"),
         role: "admin",
+      };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Sign a new JWT token for authenticated users/customers (Valid for 14 days)
+ */
+export async function signUserToken(payload: UserJWTPayload): Promise<string> {
+  return await new SignJWT({ ...payload })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime("14d")
+    .sign(secretKey);
+}
+
+/**
+ * Verify and decode an existing User JWT token
+ */
+export async function verifyUserToken(
+  token: string
+): Promise<UserJWTPayload | null> {
+  try {
+    const { payload } = await jwtVerify(token, secretKey);
+    if (payload && (payload.role === "customer" || !payload.role)) {
+      return {
+        id: String(payload.id || ""),
+        email: String(payload.email || ""),
+        name: String(payload.name || "Customer"),
+        role: "customer",
+        phone: payload.phone ? String(payload.phone) : undefined,
+        address: payload.address ? String(payload.address) : undefined,
+        pincode: payload.pincode ? String(payload.pincode) : undefined,
       };
     }
     return null;
