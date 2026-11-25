@@ -11,7 +11,11 @@ import {
   ShieldCheck,
   ChevronDown,
   Store,
-  Sparkles
+  Sparkles,
+  Loader2,
+  AlertCircle,
+  Phone,
+  Mail
 } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 
@@ -20,22 +24,62 @@ export const ContactUs: React.FC = () => {
   const [formData, setFormData] = useState({
     name: "",
     phone: "",
+    email: "",
     subject: "General Inquiry",
     message: ""
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name.trim()) return;
+    setErrorMessage(null);
 
-    setIsSubmitted(true);
-    showToast("Coming Soon! WhatsApp message submission will be active soon.");
+    if (!formData.name.trim()) {
+      setErrorMessage("Please enter your full name.");
+      return;
+    }
+    if (!formData.phone.trim()) {
+      setErrorMessage("Please enter your mobile phone number.");
+      return;
+    }
+    if (!formData.message.trim()) {
+      setErrorMessage("Please enter your query message.");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setIsSubmitted(true);
+        setFormData({
+          name: "",
+          phone: "",
+          email: "",
+          subject: "General Inquiry",
+          message: ""
+        });
+      } else {
+        setErrorMessage(data.message || "Failed to submit your message. Please try again.");
+      }
+    } catch {
+      setErrorMessage("Network error: Could not reach the server. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleWhatsAppAction = () => {
-    showToast("Coming Soon! WhatsApp support will be available shortly.");
+    window.open("https://wa.me/919876543210?text=Hi%20Fast%20Delivery%20Bilariyaganj%2C%20I%20have%20an%20inquiry", "_blank");
   };
 
   const faqs = [
@@ -161,20 +205,33 @@ export const ContactUs: React.FC = () => {
               </p>
             </div>
 
+            {/* Submission Error Banner */}
+            {errorMessage && (
+              <div className="p-4 rounded-2xl bg-red-50 border border-red-200 text-red-800 text-sm font-medium flex items-start gap-2.5 animate-fadeIn">
+                <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+                <span>{errorMessage}</span>
+              </div>
+            )}
+
             {isSubmitted ? (
-              <div className="p-8 rounded-2xl bg-green-50 border border-green-200 text-center space-y-3">
+              <div className="p-8 rounded-2xl bg-green-50 border border-green-200 text-center space-y-3 animate-fadeIn">
                 <CheckCircle2 className="w-12 h-12 text-green-600 mx-auto" />
-                <h3 className="text-xl sm:text-2xl font-semibold text-gray-900">Thank You, {formData.name}!</h3>
+                <h3 className="text-xl sm:text-2xl font-bold text-gray-900">Message Received!</h3>
                 <p className="text-base text-gray-700 font-normal max-w-md mx-auto leading-relaxed">
-                  Your message has been received! Our Bilariyaganj support desk will assist you shortly.
+                  Your message has been saved into our system. Our local Bilariyaganj support desk will assist you shortly on your contact number.
                 </p>
-                <button
-                  type="button"
-                  onClick={() => setIsSubmitted(false)}
-                  className="px-6 py-2.5 rounded-full bg-green-600 text-white font-medium text-sm hover:bg-green-700 transition-colors cursor-pointer"
-                >
-                  Send Another Message
-                </button>
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsSubmitted(false);
+                      setErrorMessage(null);
+                    }}
+                    className="px-6 py-2.5 rounded-full bg-brand-red text-white font-semibold text-sm hover:bg-brand-red-hover transition-colors cursor-pointer shadow-xs"
+                  >
+                    Send Another Message
+                  </button>
+                </div>
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-5">
@@ -202,35 +259,51 @@ export const ContactUs: React.FC = () => {
                       required
                       value={formData.phone}
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      placeholder="Enter mobile number"
+                      placeholder="Enter 10-digit mobile number"
                       className="w-full px-4 py-3 rounded-xl border border-gray-300 text-base focus:outline-none focus:ring-2 focus:ring-[#fdd602] font-normal text-gray-900 placeholder-gray-400"
                     />
                   </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-sm sm:text-base font-medium text-gray-700 block">
-                    Query Category
-                  </label>
-                  <select
-                    value={formData.subject}
-                    onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-300 text-base focus:outline-none focus:ring-2 focus:ring-[#fdd602] font-normal text-gray-900 bg-white"
-                  >
-                    <option value="General Inquiry">General Inquiry</option>
-                    <option value="Order Status">Check Order Status</option>
-                    <option value="Product Request">Request an Unlisted Product</option>
-                    <option value="Delivery Address">Delivery Address or Landmark</option>
-                    <option value="Shop Partnership">Shopkeeper / Vendor Partnership</option>
-                  </select>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  <div className="space-y-1.5">
+                    <label className="text-sm sm:text-base font-medium text-gray-700 block">
+                      Email Address <span className="text-gray-400 text-xs font-normal">(Optional)</span>
+                    </label>
+                    <input
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      placeholder="e.g. yourname@gmail.com"
+                      className="w-full px-4 py-3 rounded-xl border border-gray-300 text-base focus:outline-none focus:ring-2 focus:ring-[#fdd602] font-normal text-gray-900 placeholder-gray-400"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-sm sm:text-base font-medium text-gray-700 block">
+                      Query Category
+                    </label>
+                    <select
+                      value={formData.subject}
+                      onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                      className="w-full px-4 py-3 rounded-xl border border-gray-300 text-base focus:outline-none focus:ring-2 focus:ring-[#fdd602] font-normal text-gray-900 bg-white"
+                    >
+                      <option value="General Inquiry">General Inquiry</option>
+                      <option value="Order Status">Check Order Status</option>
+                      <option value="Product Request">Request an Unlisted Product</option>
+                      <option value="Delivery Address">Delivery Address or Landmark</option>
+                      <option value="Shop Partnership">Shopkeeper / Vendor Partnership</option>
+                    </select>
+                  </div>
                 </div>
 
                 <div className="space-y-1.5">
                   <label className="text-sm sm:text-base font-medium text-gray-700 block">
-                    Your Message or Product List
+                    Your Message or Product List <span className="text-brand-red">*</span>
                   </label>
                   <textarea
                     rows={4}
+                    required
                     value={formData.message}
                     onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                     placeholder="Tell us what items you need or write your message here..."
@@ -240,10 +313,20 @@ export const ContactUs: React.FC = () => {
 
                 <button
                   type="submit"
-                  className="w-full py-3.5 rounded-xl bg-brand-red hover:bg-brand-red-hover text-white font-medium text-base sm:text-lg flex items-center justify-center gap-2.5 shadow-sm transition-all active:scale-[0.99] cursor-pointer"
+                  disabled={isSubmitting}
+                  className="w-full py-3.5 rounded-xl bg-brand-red hover:bg-brand-red-hover disabled:opacity-60 text-white font-medium text-base sm:text-lg flex items-center justify-center gap-2.5 shadow-sm transition-all active:scale-[0.99] cursor-pointer"
                 >
-                  <Send className="w-5 h-5" />
-                  <span>Send Message</span>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span>Submitting Inquiry...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-5 h-5" />
+                      <span>Send Message</span>
+                    </>
+                  )}
                 </button>
               </form>
             )}

@@ -2,10 +2,10 @@
 
 import React from "react";
 import Link from "next/link";
-import { LayoutDashboard, ShoppingBag, FolderTree, Package, LogOut, ExternalLink, ShieldCheck } from "lucide-react";
+import { LayoutDashboard, ShoppingBag, FolderTree, Package, MessageSquare, LogOut, ExternalLink, ShieldCheck } from "lucide-react";
 import { Logo } from "@/components/Logo";
 
-export type AdminTab = "dashboard" | "orders" | "categories" | "products";
+export type AdminTab = "dashboard" | "orders" | "categories" | "products" | "queries";
 
 interface AdminSidebarProps {
   activeTab: AdminTab;
@@ -86,7 +86,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
             <span>Categories</span>
           </button>
 
-          {/* 3. Products Tab */}
+          {/* 4. Products Tab */}
           <button
             type="button"
             onClick={() => onTabChange("products")}
@@ -98,6 +98,20 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           >
             <Package className={`w-4 h-4 ${activeTab === "products" ? "text-white" : "text-gray-500"}`} />
             <span>Products</span>
+          </button>
+
+          {/* 5. Customer Queries / Inquiries Tab */}
+          <button
+            type="button"
+            onClick={() => onTabChange("queries")}
+            className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
+              activeTab === "queries"
+                ? "bg-brand-red text-white shadow-xs"
+                : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+            }`}
+          >
+            <MessageSquare className={`w-4 h-4 ${activeTab === "queries" ? "text-white" : "text-gray-500"}`} />
+            <span>Customer Queries</span>
           </button>
         </div>
 

@@ -8,6 +8,7 @@ import { DashboardOverview } from "./DashboardOverview";
 import { OrderManagement } from "./orders/OrderManagement";
 import { CategoryManagement } from "./categories/CategoryManagement";
 import { ProductManagement } from "./products/ProductManagement";
+import { ContactManagement } from "./contact/ContactManagement";
 import { Logo } from "@/components/Logo";
 
 interface AdminUser {
@@ -131,6 +132,7 @@ export const AdminDashboard: React.FC = () => {
         {activeTab === "orders" && <OrderManagement />}
         {activeTab === "categories" && <CategoryManagement />}
         {activeTab === "products" && <ProductManagement />}
+        {activeTab === "queries" && <ContactManagement />}
 
       </main>
 
